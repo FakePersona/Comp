@@ -60,40 +60,38 @@ and parse_atom = parser
                | [< 'Atom s >] -> Id(s)
 
 
-(* let rec parse_doc = parser (\* Doc *\) *)
-(*   | [< e1 = parse_decl; 'Dot; e2 = parse_doc >] -> Doc(e1,e2) *)
-(* 	| [< >] -> Atom("") *)
+(* Print the AST *)
 
-(* and parse_decl = parser (\* Decl *\) *)
-(* | [< e = parse_atom; e1 = parse_atom; e2 = parse_obj Decl(e,e1); e3 = parse_decl_aux e >] -> String.concat "" [e2;e3] *)
+let rec print_doc a = match a with
+  | Doc(e1,e2) -> String.concat "" [print_decl e1; print_doc e2]
+	| e -> print_decl e
 
-(* and parse_decl_aux s = parser (\* Decl' *\) *)
-(* 	| [< 'Semicolon; e1 = parse_atom; e2 = parse_obj (String.concat "" [s;e1]); e3 = parse_decl_aux s >] ->  (String.concat "" [e2;e3]) *)
-(* 	| [< >] -> "" *)
+and print_decl a = match a with (* Decl *)
+  | Decl(e1,e2) -> print_conj (print_atom e1) e2
 
-(* and parse_obj s = parser (\* Obj *\) *)
-(*   | [< e1 = parse_atom; e2 = parse_obj_aux s >] -> String.concat "" [s;e1;".\n";e2] *)
+and print_conj s a =  match a with(* Decl' *)
+	| Conj(e1,e2) ->  (String.concat "" [print_obj s e1; print_conj s e2])
+	| e -> print_obj s e
 
-(* and parse_obj_aux s = parser (\* Obj' *\) *)
-(* 	| [< 'Comma; e1 = parse_atom; e2 = parse_obj_aux s >] ->  (String.concat "" [s;e1;".\n";e2]) *)
-(* 	| [< >] -> "" *)
+and print_obj s a = match a with (* Obj *)
+  | Pred(e1,e2) -> print_enum (print_atom s e1) e2
 
-(* and parse_atom = parser (\* A *\) *)
-(*   | [< 'Atom s >] -> String.concat s ["<";">"] *)
+and print_enum s a = match a with (* Obj' *)
+	| Enum(e1,e2) ->  (String.concat "" [print_atom s e1; print_anum s e2])
+	| e -> print_atom e
 
-(* let rec parse = parser *)
-(* | [< 'Atom s; e = parse >] -> String.concat "" [s; e] *)
-(* | [< 'token; e = parse >] -> String.concat "" ["tok"; e] *)
+and print_atom s a = match a with (* A *)
+  | Id(i) -> i
 
 
 (* That is all that is required to parse simple arithmetic
 expressions. We can test it by lexing and parsing a string to get the
 abstract syntax tree representing the expression: *)
 
-(* let test s = parse_doc (lex (Stream.of_string s));; *)
+let test s = parse_doc (lex (Stream.of_string s));;
 
 
-(* print_string (test "<Je> <prendre> <doucement>;<manger> <rire>,<pleurer>; <tomber> <mal>.<Tu> <dors> <vite>,<fort>.") *)
+print_string (print_doc (test "<Je> <prendre> <doucement>."))
 
 (* let test2 s = parse (lex (Stream.of_string s));; *)
 
