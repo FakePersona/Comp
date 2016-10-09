@@ -39,7 +39,7 @@ type ast = Id of string | Doc of ast * ast | Decl of ast * ast | Pred of ast * a
 (* The recursive descent parser consists of three mutually-recursive functions: *)
 
 let rec parse_doc = parser
-                  | [< e1 = parse_decl; e2 = parse_doc >] -> Doc(e1,e2)
+                  | [< e1 = parse_decl; 'Dot; e2 = parse_doc >] -> Doc(e1,e2)
                   | [< >] -> Id("")
 
 and parse_decl = parser
@@ -63,25 +63,27 @@ and parse_atom = parser
 (* Print the AST *)
 
 let rec print_doc a = match a with
-  | Doc(e1,e2) -> String.concat "" [print_decl e1; print_doc e2]
+  | Doc(e1,e2) -> String.concat ".\n" [print_decl e1; print_doc e2]
 	| e -> print_decl e
 
 and print_decl a = match a with (* Decl *)
-  | Decl(e1,e2) -> print_conj (print_atom e1) e2
+  | Decl(e1,e2) -> print_conj (print_atom "" e1) e2
+  | _ -> ""
 
 and print_conj s a =  match a with(* Decl' *)
-	| Conj(e1,e2) ->  (String.concat "" [print_obj s e1; print_conj s e2])
+	| Conj(e1,e2) ->  (String.concat ".\n" [print_obj s e1; print_conj s e2])
 	| e -> print_obj s e
 
 and print_obj s a = match a with (* Obj *)
   | Pred(e1,e2) -> print_enum (print_atom s e1) e2
+  | _ -> ""
 
 and print_enum s a = match a with (* Obj' *)
-	| Enum(e1,e2) ->  (String.concat "" [print_atom s e1; print_anum s e2])
-	| e -> print_atom e
+	| Enum(e1,e2) ->  (String.concat ".\n" [print_atom s e1; print_enum s e2])
+	| e -> print_atom s e
 
 and print_atom s a = match a with (* A *)
-  | Id(i) -> i
+  | Id(i) -> String.concat "" [s;"<";i;">"]
 
 
 (* That is all that is required to parse simple arithmetic
@@ -91,7 +93,7 @@ abstract syntax tree representing the expression: *)
 let test s = parse_doc (lex (Stream.of_string s));;
 
 
-print_string (print_doc (test "<Je> <prendre> <doucement>."))
+print_string (print_doc (test "<Je> <rire> <fort>; <prendre> <doucement>, <vite>.<Tu> <manges> <lentement>."))
 
 (* let test2 s = parse (lex (Stream.of_string s));; *)
 
