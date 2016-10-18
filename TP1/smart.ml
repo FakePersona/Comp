@@ -37,7 +37,7 @@ and token_ident sub = parser (* number: 'num' is what has been recognized so far
 
 (* parse without AST *)
 
-type ast = Id of string | Name of string | Doc of ast * ast | Decl of ast * ast | Pred of ast * ast | Enum of ast * ast | Conj of ast * ast | Empty
+type ast = Id of string | Name of string | Doc of ast * ast | Decl of ast * (ast list) | Pred of ast * (ast list) | Empty
 
 
 (* The recursive descent parser consists of three mutually-recursive functions: *)
@@ -47,18 +47,18 @@ let rec parse_doc = parser
                   | [< >] -> Empty
 
 and parse_decl = parser
-               | [< e1 = parse_atom; e2 = parse_obj; e3 = parse_conj e2>] -> Decl(e1,e3)
+               | [< e1 = parse_atom; e2 = parse_obj; e3 = parse_conj [e2]>] -> Decl(e1,e3)
 
 and parse_conj e = parser
-                 | [< 'Semicolon; e1 = parse_obj; e2 = parse_conj (Conj(e1,e))>] -> e2
-                 | [< >] -> e
+                 | [< 'Semicolon; e1 = parse_obj; e2 = parse_conj (e1::e)>] -> e2
+                 | [< >] -> List.rev e
 
 and parse_obj = parser
-                 | [< e1 = parse_atom; e2 = parse_atom_aux; e3 = parse_enum e2>] -> Pred(e1,e3)
+                 | [< e1 = parse_atom; e2 = parse_atom_aux; e3 = parse_enum [e2]>] -> Pred(e1,e3)
 
 and parse_enum e = parser
-                 | [< 'Comma; e1 = parse_atom_aux; e2 = parse_enum (Enum(e1,e))>] -> e2
-                 | [< >] -> e
+                 | [< 'Comma; e1 = parse_atom_aux; e2 = parse_enum (e1::e)>] -> e2
+                 | [< >] -> List.rev e
 
 and parse_atom = parser
                | [< 'Atom s >] -> Id(s)
@@ -71,7 +71,7 @@ and parse_atom_aux = parser
 (* Print the AST *)
 
 let rec print_doc a = match a with
-  | Doc(e1,e2) -> String.concat ".\n" [print_decl e1; print_doc e2]
+  | Doc(e1,e2) -> String.concat "" [print_decl e1; print_doc e2]
   |Empty -> ""
 	| e -> print_decl e
 
@@ -80,16 +80,17 @@ and print_decl a = match a with (* Decl *)
   | _ -> ""
 
 and print_conj s a =  match a with(* Decl' *)
-	| Conj(e1,e2) ->  (String.concat ".\n" [print_obj s e1; print_conj s e2])
-	| e -> print_obj s e
+  | [] -> ""
+	| p::q ->  (String.concat "" [print_obj s p; print_conj s q])
 
 and print_obj s a = match a with (* Obj *)
   | Pred(e1,e2) -> print_enum (print_atom s e1) e2
   | _ -> ""
 
 and print_enum s a = match a with (* Obj' *)
-	| Enum(e1,e2) ->  (String.concat ".\n" [print_atom s e1; print_enum s e2])
-	| e -> print_atom s e
+	| [] -> ""
+	| p::q ->  (String.concat ".\n" [print_atom s p; print_enum s q])
+
 
 and print_atom s a = match a with (* A *)
   | Id(i) -> String.concat "" [s;"<";i;">"]
@@ -104,24 +105,24 @@ let rec nb_desc a =  match a with
   | _ -> 1
 
  
-let rec parse = parser
-              | [< 'Atom s; e = parse >] -> String.concat "" [s; e]
-              | [< 'Str s; e = parse >] -> String.concat "" [s; e]
-              | [< 'Semicolon; e = parse >] -> String.concat "" [";"; e]
-              | [< 'Dot; e = parse >] -> String.concat "" ["."; e]
-              | [< 'Comma; e = parse >] -> String.concat "" [","; e]
-              | [< >] -> ""
+(* let rec parse = parser *)
+(*               | [< 'Atom s; e = parse >] -> String.concat "" [s; e] *)
+(*               | [< 'Str s; e = parse >] -> String.concat "" [s; e] *)
+(*               | [< 'Semicolon; e = parse >] -> String.concat "" [";"; e] *)
+(*               | [< 'Dot; e = parse >] -> String.concat "" ["."; e] *)
+(*               | [< 'Comma; e = parse >] -> String.concat "" [","; e] *)
+(*               | [< >] -> "" *)
 
 
-let rec print a = match a with
-  | Doc(e1,e2) -> String.concat "" ["Doc(";print e1;",";print e2;")"]
-  | Decl(e1,e2) -> String.concat "" ["Decl(";print e1;","; print e2;")"]
-  | Conj(e1,e2) -> String.concat "" ["Conj(";print e1;",";print e2;")"]
-  | Pred(e1,e2) -> String.concat "" ["Pred(";print e1;",";print e2;")"]
-  | Enum(e1,e2) -> String.concat "" ["Enum(";print e1;",";print e2;")"]
-  | Id(s) -> s
-  | Empty  -> "Empty"
-  | _ -> ""
+(* let rec print a = match a with *)
+(*   | Doc(e1,e2) -> String.concat "" ["Doc(";print e1;",";print e2;")"] *)
+(*   | Decl(e1,e2) -> String.concat "" ["Decl(";print e1;","; print e2;")"] *)
+(*   | Conj(e1,e2) -> String.concat "" ["Conj(";print e1;",";print e2;")"] *)
+(*   | Pred(e1,e2) -> String.concat "" ["Pred(";print e1;",";print e2;")"] *)
+(*   | Enum(e1,e2) -> String.concat "" ["Enum(";print e1;",";print e2;")"] *)
+(*   | Id(s) -> s *)
+(*   | Empty  -> "Empty" *)
+(*   | _ -> "" *)
 
 
 (* That is all that is required to parse simple arithmetic
@@ -133,11 +134,12 @@ let test s = parse_doc (lex s);;
 let ic = open_in "tests/test1.ttl" in
     let sp = Stream.of_channel ic in
     let st = Stream.of_string "<COMP>\n<titre><Cours de compilation>,<plop>,<plop>,<plop>,<plop>." in
-    print_string (print_doc (test sp));
+    print_string (print_doc (test sp));;
     (* print_int (nb_desc (test st)) *)
 
-(* let test2 s = parse (lex s);; *)
-(* let ic = open_in "tests/test3.ttl" in *)
+    (* let test2 s = parse_doc (lex s);; *)
+
+(* let ic = open_in "tests/test1.ttl" in *)
 (* let s = Stream.of_channel ic in *)
-(* print_string (test2 s) *)
+(* print_string (print (test2 s)) *)
 
