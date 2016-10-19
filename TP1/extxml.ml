@@ -103,39 +103,8 @@ let print_xml a =
 let header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rdf:RDF\n\t xml:base=\"http://mydomain.org/myrdf/\"\n\t xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">" in
     String.concat "\n" [header; print_doc a;"</rdf:RDF>\n"]
 
-(* let rec parse = parser *)
-(*               | [< 'Atom s; e = parse >] -> String.concat "" [s; e] *)
-(*               | [< 'Str s; e = parse >] -> String.concat "" [s; e] *)
-(*               | [< 'Semicolon; e = parse >] -> String.concat "" [";"; e] *)
-(*               | [< 'Dot; e = parse >] -> String.concat "" ["."; e] *)
-(*               | [< 'Comma; e = parse >] -> String.concat "" [","; e] *)
-(*               | [< >] -> "" *)
-
-
-(* let rec print a = match a with *)
-(*   | Doc(e1,e2) -> String.concat "" ["Doc(";print e1;",";print e2;")"] *)
-(*   | Decl(e1,e2) -> String.concat "" ["Decl(";print e1;","; print e2;")"] *)
-(*   | Conj(e1,e2) -> String.concat "" ["Conj(";print e1;",";print e2;")"] *)
-(*   | Pred(e1,e2) -> String.concat "" ["Pred(";print e1;",";print e2;")"] *)
-(*   | Enum(e1,e2) -> String.concat "" ["Enum(";print e1;",";print e2;")"] *)
-(*   | Id(s) -> s *)
-(*   | Empty  -> "Empty" *)
-(*   | _ -> "" *)
-
-
-(* That is all that is required to parse simple arithmetic
-expressions. We can test it by lexing and parsing a string to get the
-abstract syntax tree representing the expression: *)
-
 let test s = parse_doc (lex s);;
 
 let ic = open_in "tests/test1.ttl" in
     let sp = Stream.of_channel ic in
-    let st = Stream.of_string "<COMP>\n<titre><Cours de compilation>,<plop>,<plop>,<plop>,<plop>." in
-    print_string (print_xml (test sp));
-    (* print_int (nb_desc (test st)) *)
-
-(* let test2 s = parse (lex s);; *)
-(* let ic = open_in "tests/test3.ttl" in *)
-(* let s = Stream.of_channel ic in *)
-(* print_string (test2 s) *)
+        print_string (print_xml (test sp))

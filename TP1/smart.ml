@@ -35,14 +35,11 @@ and token_ident sub = parser (* number: 'num' is what has been recognized so far
   | [< ' ('"') >] -> sub
   | [< >] -> sub (* ident *)
 
-(* parse without AST *)
+(* parse to create the AST *)
 
 type ast = Id of string | Name of string | Doc of ast * ast | Decl of ast * (ast list) | Pred of ast * (ast list) | Empty
 
-
-(* The recursive descent parser consists of three mutually-recursive functions: *)
-
-let rec parse_doc = parser
+let rec parse_doc = parser 
                   | [< e1 = parse_decl; 'Dot; e2 = parse_doc >] -> Doc(e1,e2)
                   | [< >] -> Empty
 
@@ -68,33 +65,34 @@ and parse_atom_aux = parser
 	                 |[<'Str s>] -> Name(s)
 
 
-(* Print the AST *)
+(* Print the NTRIPLE syntax with the AST *)
+(* We have two attributes: c_begin (inherited, current beginning of sentence) and string (synthetized) *)
 
 let rec print_doc a = match a with
   | Doc(e1,e2) -> String.concat "" [print_decl e1; print_doc e2]
-  |Empty -> ""
+  | Empty -> ""
 	| e -> print_decl e
 
 and print_decl a = match a with (* Decl *)
   | Decl(e1,e2) -> print_conj (print_atom "" e1) e2
-  | _ -> ""
+  | _ -> ""                     (* Placeholder to avoid pattern warnings *)
 
-and print_conj s a =  match a with(* Decl' *)
+and print_conj c_begin a =  match a with(* Decl' *)
   | [] -> ""
-	| p::q ->  (String.concat "" [print_obj s p; print_conj s q])
+	| p::q ->  (String.concat "" [print_obj c_begin p; print_conj c_begin q])
 
-and print_obj s a = match a with (* Obj *)
-  | Pred(e1,e2) -> print_enum (print_atom s e1) e2
+and print_obj c_begin a = match a with (* Obj *)
+  | Pred(e1,e2) -> print_enum (print_atom c_begin e1) e2
   | _ -> ""
 
-and print_enum s a = match a with (* Obj' *)
+and print_enum c_begin a = match a with (* Obj' *)
 	| [] -> ""
-	| p::q ->  (String.concat ".\n" [print_atom s p; print_enum s q])
+	| p::q ->  (String.concat ".\n" [print_atom c_begin p; print_enum c_begin q])
 
 
-and print_atom s a = match a with (* A *)
-  | Id(i) -> String.concat "" [s;"<";i;">"]
-  | Name(i) -> String.concat "" [s;"!";i;"!"]
+and print_atom c_begin a = match a with (* A *)
+  | Id(i) -> String.concat "" [c_begin;"<";i;">"]
+  | Name(i) -> String.concat "" [c_begin;"\"";i;"\""]
   | _ -> ""
 
 (* Check number of descriptions *)
@@ -102,44 +100,11 @@ and print_atom s a = match a with (* A *)
 let rec nb_desc a =  match a with
   | Doc(e1,e2) -> 2
   | Empty -> 0
-  | _ -> 1
+  | _ -> 0
 
- 
-(* let rec parse = parser *)
-(*               | [< 'Atom s; e = parse >] -> String.concat "" [s; e] *)
-(*               | [< 'Str s; e = parse >] -> String.concat "" [s; e] *)
-(*               | [< 'Semicolon; e = parse >] -> String.concat "" [";"; e] *)
-(*               | [< 'Dot; e = parse >] -> String.concat "" ["."; e] *)
-(*               | [< 'Comma; e = parse >] -> String.concat "" [","; e] *)
-(*               | [< >] -> "" *)
-
-
-(* let rec print a = match a with *)
-(*   | Doc(e1,e2) -> String.concat "" ["Doc(";print e1;",";print e2;")"] *)
-(*   | Decl(e1,e2) -> String.concat "" ["Decl(";print e1;","; print e2;")"] *)
-(*   | Conj(e1,e2) -> String.concat "" ["Conj(";print e1;",";print e2;")"] *)
-(*   | Pred(e1,e2) -> String.concat "" ["Pred(";print e1;",";print e2;")"] *)
-(*   | Enum(e1,e2) -> String.concat "" ["Enum(";print e1;",";print e2;")"] *)
-(*   | Id(s) -> s *)
-(*   | Empty  -> "Empty" *)
-(*   | _ -> "" *)
-
-
-(* That is all that is required to parse simple arithmetic
-expressions. We can test it by lexing and parsing a string to get the
-abstract syntax tree representing the expression: *)
 
 let test s = parse_doc (lex s);;
 
 let ic = open_in "tests/test1.ttl" in
     let sp = Stream.of_channel ic in
-    let st = Stream.of_string "<COMP>\n<titre><Cours de compilation>,<plop>,<plop>,<plop>,<plop>." in
     print_string (print_doc (test sp));;
-    (* print_int (nb_desc (test st)) *)
-
-    (* let test2 s = parse_doc (lex s);; *)
-
-(* let ic = open_in "tests/test1.ttl" in *)
-(* let s = Stream.of_channel ic in *)
-(* print_string (print (test2 s)) *)
-
