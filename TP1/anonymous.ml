@@ -14,7 +14,7 @@ let int_of_char c = Char.code c - Char.code '0'
 
 (* First, we define the tokens (lexical units) *)
 
-type token = Atom of string | Str of string | Dot | Comma | Semicolon
+type token = Atom of string | Str of string | Dot | Comma | Semicolon | Bracket of token
 
 (* Then we define the lexer, using stream parsers with only right recursion *)
 
@@ -29,6 +29,8 @@ and token = parser
   | [< ' (';') >] -> Semicolon
   | [< ' ('"') ; s = token_ident "" >] -> Str s
   | [< ' ('<') ; s = token_ident "" >] -> Atom s
+| [< ' ('[') ; t = token; ' (']') >] ->  Bracket(t)
+
 and token_ident sub = parser (* number: 'num' is what has been recognized so far *)
   | [< 'c when c != '>' && c != '"'; s = token_ident (String.concat "" [sub;string_of_char c]) >] -> s (* reading more characters *)
 	| [< ' ('>') >] -> sub
@@ -90,20 +92,12 @@ and print_enum c_begin a = match a with (* Obj' *)
 	| p::q ->  (String.concat ".\n" [print_atom c_begin p; print_enum c_begin q])
 
 
-<<<<<<< HEAD
-let rec parse = parser
-| [< 'Atom s; e = parse >] -> String.concat ">" [s; e]
-| [< 'Str s; e = parse >] -> String.concat "!" [s; e]
-| [< 'token; e = parse >] -> String.concat "" ["token"; e]
-| [< >] -> ""
-=======
 and print_atom c_begin a = match a with (* A *)
   | Id(i) -> String.concat "" [c_begin;"<";i;">"]
   | Name(i) -> String.concat "" [c_begin;"\"";i;"\""]
   | _ -> ""
 
 (* Check number of descriptions *)
->>>>>>> 09466bfa8a381e8d31f88a7019fcb1413196cc7c
 
 let rec nb_desc a =  match a with
   | Doc(e1,e2) -> 2
@@ -113,14 +107,6 @@ let rec nb_desc a =  match a with
 
 let test s = parse_doc (lex s);;
 
-<<<<<<< HEAD
-let test2 s = parse (lex s);;
-let ic = open_in "tests/test3.ttl" in
-let s = Stream.of_channel ic in
-print_string (test2 s)
-(*- : expr = Sub (Add (Num 1, Mul (Num 2, Add (Num 3, Num 4))), 5) *)
-=======
 let ic = open_in "tests/test1.ttl" in
     let sp = Stream.of_channel ic in
     print_string (print_doc (test sp));;
->>>>>>> 09466bfa8a381e8d31f88a7019fcb1413196cc7c
