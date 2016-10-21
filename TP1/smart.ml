@@ -96,8 +96,8 @@ and print_atom s a = match a with (* A *)
 | _ -> ""
 
 let rec parse = parser
-| [< 'Atom s; e = parse >] -> String.concat "" [s; e]
-| [< 'Str s; e = parse >] -> String.concat "" [s; e]
+| [< 'Atom s; e = parse >] -> String.concat ">" [s; e]
+| [< 'Str s; e = parse >] -> String.concat "!" [s; e]
 | [< 'token; e = parse >] -> String.concat "" ["token"; e]
 | [< >] -> ""
 
@@ -116,5 +116,5 @@ print_string (print_doc (test s ))
 let test2 s = parse (lex s);;
 let ic = open_in "tests/test3.ttl" in
 let s = Stream.of_channel ic in
-print_string (test2 (Stream.of_string "<COMP><titre><Cours de compilation>;<poly><poly117>;<enseignant><Ferre>,<Hardy>,<Chapuis>;<formation><m1info>."))
+print_string (test2 s)
 (*- : expr = Sub (Add (Num 1, Mul (Num 2, Add (Num 3, Num 4))), 5) *)
