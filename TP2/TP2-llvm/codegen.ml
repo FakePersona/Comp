@@ -1,5 +1,7 @@
 
 open Ast
+open SymbolTableList
+ 
 
 exception TODO (* to be used for actions remaining to be done *)
 exception Error of string (* to be used for semantic errors *)
@@ -99,19 +101,32 @@ let rec gen_expression : expression -> Llvm.llvalue = function
   (* appends a 'div' instruction and returns the result llvalue *)
   | _ -> raise TODO
 
-let gen_dec_item : dec_item -> Llvm.llvalue = function
+let gen_dec_item : dec_item -> unit = function
   | Dec_Ident (id) ->
-     Llvm.declare_global int_type id the_module
+     let symb = Llvm.build_alloca int_type id builder in
+     add id symb
   | _ -> raise TODO
 
-let rec gen_declaration : declaration -> Llvm.llvalue list = function
-  | [] -> []
-  | p::q -> (gen_dec_item p)::(gen_declaration q)
+let rec gen_declaration : declaration -> unit = function
+  | [] -> ()
+  | p::q -> (gen_dec_item p);(gen_declaration q)
+
+let rec gen_statement : statement -> unit = function
+  | Return(e) -> let t = gen_expression e in
+		 ignore(Llvm.build_ret t builder)
+  | Assign(LHS_Ident(lhs),e) -> let symb = lookup lhs in
+				let value = gen_expression e in
+				ignore(Llvm.build_store value symb builder)
+  | Block(d,sl) -> open_scope();
+		   gen_declaration d;
+		   ignore(List.map gen_statement sl);
+		   close_scope ()
+  | _ -> raise TODO
 
 (* function that turns the code generated for an expression into a valid LLVM code *)
-let gen (e : expression) : unit =
+let gen (s : statement) : unit =
   let the_function = Llvm.declare_function "main" (Llvm.function_type int_type [||]) the_module in
   let bb = Llvm.append_block context "entry" the_function in
   Llvm.position_at_end bb builder;
-  let x = gen_expression e in
-  ignore (Llvm.build_ret x builder)
+  gen_statement s;
+  ignore(Llvm.build_ret_void builder)
