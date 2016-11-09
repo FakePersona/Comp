@@ -99,6 +99,9 @@ let rec gen_expression : expression -> Llvm.llvalue = function
         (* the same for e2 *)
       Llvm.build_udiv t1 t2 "div" builder
   (* appends a 'div' instruction and returns the result llvalue *)
+  | Expr_Ident(id) ->
+     let symb = lookup id in
+     Llvm.build_load symb id builder
   | _ -> raise TODO
 
 let gen_dec_item : dec_item -> unit = function
