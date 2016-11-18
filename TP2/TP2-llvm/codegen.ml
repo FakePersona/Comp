@@ -124,6 +124,29 @@ let rec gen_statement : statement -> unit = function
 		   gen_declaration d;
 		   ignore(List.map gen_statement sl);
 		   close_scope ()
+  | If(c,t,e_opt) ->let cond = gen_expression c in
+		    let zero = const_int 0 in
+		    let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "ifcond" builder in
+		    
+		    let if_bb = Llvm.insertion_block builder in
+		    let the_function = Llvm.block_parent if_bb in
+
+		    let end_bb = Llvm.append_block context "eblock" the_function in
+		    
+		    let true_bb = Llvm.append_block context "itrue" the_function in
+		    Llvm.position_at_end true_bb builder;		    
+		    let i_t = gen_statement t in
+		    ignore(Llvm.build_br end_bb builder);
+		    
+		    let false_bb = Llvm.append_block context "ifalse" the_function in
+		    Llvm.position_at_end false_bb builder;
+		    (* let i_f = gen_statement e_opt in *)
+		    ignore(Llvm.build_br end_bb builder);
+		    
+		    Llvm.position_at_end if_bb builder;
+		    ignore(Llvm.build_cond_br cond_val true_bb false_bb builder);
+
+		    Llvm.position_at_end end_bb builder
   | _ -> raise TODO
 
 (* function that turns the code generated for an expression into a valid LLVM code *)
