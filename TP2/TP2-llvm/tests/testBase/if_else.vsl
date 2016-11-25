@@ -1,0 +1,10 @@
+{
+	INT i
+	IF 0
+	THEN
+		i:=0
+ 	ELSE
+		i:=5
+	FI
+	RETURN i
+}
