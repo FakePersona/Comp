@@ -209,6 +209,35 @@ let rec gen_statement : statement -> unit = function
 		    Llvm.position_at_end end_bb builder
   | _ -> raise TODO
 
+let gen_proto : proto -> unit = function
+| (t,id,param) -> 
+      let ty = (if  t = Type_Int then int_type else void_type) in
+      let ft = Llvm.function_type ty params in
+      let f =
+        match Llvm.lookup_function name the_module with
+        | None -> Llvm.declare_function name ft the_module
+
+        (* If 'f' conflicted, there was already something named 'name'. If it
+         * has a body, don't allow redefinition or reextern. *)
+        | Some f ->
+            (* If 'f' already has a body, reject this. *)
+            if Llvm.block_begin f <> Llvm.At_end f then
+              raise (Error "redefinition of function");
+
+            (* If 'f' took a different number of arguments, reject. *)
+            if Llvm.element_type (Llvm.type_of f) <> ft then
+              raise (Error "redefinition of function with different # params");
+            f
+      in
+
+      (* Set names for all arguments. *)
+      Array.iteri (fun i a ->
+        let n = param.(i) in
+        Llvm.set_value_name n a;
+        add n a;
+      ) (params f)
+
+
 let gen_function : statement -> unit = function
   | Proto(t,f,params) ->for i=0 to (Array.length(params)-1) do(* llvm.params llvm.set_value_name *)
 			  alloca
