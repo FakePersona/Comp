@@ -102,6 +102,20 @@ let rec gen_expression : expression -> Llvm.llvalue = function
   | Expr_Ident(id) ->
      let symb = lookup id in
      Llvm.build_load symb id builder
+| ECall (f_id, param) ->
+    (* Look up the name in the module table. *)
+    let f =
+      match Llvm.lookup_function f_id the_module with
+      | Some f -> f
+      | None -> raise (Error "unknown function called")
+    in
+    let params = Llvm.params f in
+
+    (* If argument mismatch error. *)
+    if Array.length params == Array.length param then () else
+      raise (Error "incorrect # arguments passed");
+    let args = Array.map Llvm.codegen_expr args in
+    Llvm.build_call f args "calltmp" builder
   | _ -> raise TODO
 
 let gen_dec_item : dec_item -> unit = function
@@ -207,6 +221,20 @@ let rec gen_statement : statement -> unit = function
 		    ignore(Llvm.build_br while_bb builder);
 		    
 		    Llvm.position_at_end end_bb builder
+| SCall (f_id, param) ->
+    (* Look up the name in the module table. *)
+    let f =
+      match Llvm.lookup_function f_id the_module with
+      | Some f -> f
+      | None -> raise (Error "unknown function called")
+    in
+    let params = Llvm.params f in
+
+    (* If argument mismatch error. *)
+    if Array.length params == Array.length param then () else
+      raise (Error "incorrect # arguments passed");
+    let args = Array.map Llvm.codegen_expr args in
+    Llvm.build_call f args "calltmp" builder
   | _ -> raise TODO
 
 let gen_proto : proto -> unit = function
@@ -215,7 +243,9 @@ let gen_proto : proto -> unit = function
       let ft = Llvm.function_type ty params in
       let f =
         match Llvm.lookup_function name the_module with
-        | None -> Llvm.declare_function name ft the_module
+        | None -> let ff = Llvm.declare_function name ft the_module in
+create_entry_block_array_alloca ff param int_type (Array.length(param));
+ff
 
         (* If 'f' conflicted, there was already something named 'name'. If it
          * has a body, don't allow redefinition or reextern. *)
@@ -235,14 +265,17 @@ let gen_proto : proto -> unit = function
         let n = param.(i) in
         Llvm.set_value_name n a;
         add n a;
-      ) (params f)
+      ) (Llvm.params f)
 
 
-let gen_function : statement -> unit = function
-  | Proto(t,f,params) ->for i=0 to (Array.length(params)-1) do(* llvm.params llvm.set_value_name *)
-			  alloca
-			done;
-     declare_function f t the_module
+let gen_function : statement -> unit = function(* llvm.params llvm.set_value_name *)
+  | Proto(p) -> gen_proto p;
+| Function(p,s) ->let f = gen_proto p in
+(* Create a new basic block to start insertion into. *)
+      let entry_bb = append_block context "entry" f in
+      position_at_end entry_bb builder;
+ignore(gen_statement s)
+
 
 
 (* function that turns the code generated for an expression into a valid LLVM code *)
