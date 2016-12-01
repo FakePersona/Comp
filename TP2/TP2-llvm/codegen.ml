@@ -69,65 +69,91 @@ let create_entry_block_array_alloca the_function var_name typ size =
 
 let rec gen_expression : expression -> Llvm.llvalue = function
   | Const n ->
-      const_int n
-        (* returns a constant llvalue for that integer *)
+     const_int n
+	       
+  (* returns a constant llvalue for that integer *)
+	       
   | Plus (e1,e2) ->
+     
       let t1 = gen_expression e1 in
         (* generates the code for [e1] and returns the result llvalue *)
       let t2 = gen_expression e2 in
         (* the same for e2 *)
       Llvm.build_add t1 t2 "plus" builder
 	(* appends an 'add' instruction and returns the result llvalue *)
+
   | Minus (e1,e2) ->
-      let t1 = gen_expression e1 in
+
+     let t1 = gen_expression e1 in
         (* generates the code for [e1] and returns the result llvalue *)
       let t2 = gen_expression e2 in
         (* the same for e2 *)
       Llvm.build_sub t1 t2 "minus" builder
 	(* appends a 'sub' instruction and returns the result llvalue *)
+
   | Mul (e1,e2) ->
-      let t1 = gen_expression e1 in
+
+     let t1 = gen_expression e1 in
         (* generates the code for [e1] and returns the result llvalue *)
       let t2 = gen_expression e2 in
         (* the same for e2 *)
       Llvm.build_mul t1 t2 "mul" builder
 	(* appends a 'mul' instruction and returns the result llvalue *)
+
   | Div (e1,e2) ->
-      let t1 = gen_expression e1 in
+
+     let t1 = gen_expression e1 in
         (* generates the code for [e1] and returns the result llvalue *)
       let t2 = gen_expression e2 in
         (* the same for e2 *)
       Llvm.build_udiv t1 t2 "div" builder
   (* appends a 'div' instruction and returns the result llvalue *)
+
   | Expr_Ident(id) ->
+
      let symb = lookup id in
      Llvm.build_load symb id builder
-| ECall (f_id, param) ->
-    (* Look up the name in the module table. *)
-    let f =
-      match Llvm.lookup_function f_id the_module with
-      | Some f -> f
-      | None -> raise (Error "unknown function called")
-    in
-    let params = Llvm.params f in
-
-    (* If argument mismatch error. *)
-    if Array.length params == Array.length param then () else
-      raise (Error "incorrect # arguments passed");
-    let args = Array.map Llvm.codegen_expr args in
-    Llvm.build_call f args "calltmp" builder
+		     
+  | ECall (f_id, args) ->
+     
+     (* Look up the name in the module table. *)
+     let f =
+       match Llvm.lookup_function f_id the_module with
+       | Some f -> f
+       | None -> raise (Error "unknown function called")
+     in
+     let params = Llvm.params f in
+     
+     (* If argument mismatch error. *)
+     if Array.length params == Array.length args then () else
+       raise (Error "incorrect # arguments passed");
+     let args = Array.map gen_expression args in
+     Llvm.build_call f args "calltmp" builder
+		     
   | _ -> raise TODO
 
+	       
+let gen_print_item : print_item -> unit = function
+    
+  | Print_Expr e -> ignore(gen_expression (ECall("printf",Array.make 1 e)))
+
+  | Print_Text s -> ignore(Llvm.build_call func_printf (Array.make 1 (const_string s)) "callprint" builder)
+
+			  
 let gen_dec_item : dec_item -> unit = function
   | Dec_Ident (id) ->
      let symb = Llvm.build_alloca int_type id builder in
      add id symb
+	 
   | _ -> raise TODO
 
+	       
 let rec gen_declaration : declaration -> unit = function
   | [] -> ()
+	    
   | p::q -> (gen_dec_item p);(gen_declaration q)
 
+			       
 let rec gen_statement : statement -> unit = function
   | Return(e) -> let t = gen_expression e in
 		 ignore(Llvm.build_ret t builder)
@@ -221,67 +247,68 @@ let rec gen_statement : statement -> unit = function
 		    ignore(Llvm.build_br while_bb builder);
 		    
 		    Llvm.position_at_end end_bb builder
-| SCall (f_id, param) ->
-    (* Look up the name in the module table. *)
-    let f =
-      match Llvm.lookup_function f_id the_module with
-      | Some f -> f
-      | None -> raise (Error "unknown function called")
-    in
-    let params = Llvm.params f in
+  | SCall (f_id, args) ->
+     (* Look up the name in the module table. *)
+     let f =
+       match Llvm.lookup_function f_id the_module with
+       | Some f -> f
+       | None -> raise (Error "unknown function called")
+     in
+     let params = Llvm.params f in
 
-    (* If argument mismatch error. *)
-    if Array.length params == Array.length param then () else
-      raise (Error "incorrect # arguments passed");
-    let args = Array.map Llvm.codegen_expr args in
-    Llvm.build_call f args "calltmp" builder
+     (* If argument mismatch error. *)
+     if Array.length params == Array.length args then () else
+       raise (Error "incorrect # arguments passed");
+     let args = Array.map gen_expression args in
+     ignore(Llvm.build_call f args "calltmp" builder)
+  | Print l -> ignore(List.map gen_print_item l)
   | _ -> raise TODO
 
-let gen_proto : proto -> unit = function
-| (t,id,param) -> 
-      let ty = (if  t = Type_Int then int_type else void_type) in
-      let ft = Llvm.function_type ty params in
-      let f =
-        match Llvm.lookup_function name the_module with
-        | None -> let ff = Llvm.declare_function name ft the_module in
-create_entry_block_array_alloca ff param int_type (Array.length(param));
-ff
+let gen_proto : proto -> Llvm.llvalue = function
+  | (t,id,args) -> 
+     let ty = (if  t = Type_Int then int_type else void_type) in
+     let parameters = Array.make (Array.length args) ty in
+     let ft = Llvm.function_type ty parameters in
+       match Llvm.lookup_function id the_module with
+       | None ->
+		 let f = Llvm.declare_function id ft the_module in
+		 
+		 f
+       | Some f ->
 
-        (* If 'f' conflicted, there was already something named 'name'. If it
-         * has a body, don't allow redefinition or reextern. *)
-        | Some f ->
-            (* If 'f' already has a body, reject this. *)
-            if Llvm.block_begin f <> Llvm.At_end f then
-              raise (Error "redefinition of function");
-
-            (* If 'f' took a different number of arguments, reject. *)
-            if Llvm.element_type (Llvm.type_of f) <> ft then
-              raise (Error "redefinition of function with different # params");
-            f
-      in
-
-      (* Set names for all arguments. *)
-      Array.iteri (fun i a ->
-        let n = param.(i) in
-        Llvm.set_value_name n a;
-        add n a;
-      ) (Llvm.params f)
+          if Llvm.block_begin f <> Llvm.At_end f then
+            raise (Error "Already defined function");
+	  
+          if Llvm.element_type (Llvm.type_of f) <> ft then
+            raise (Error "Function declared with more parameters");
+          f
 
 
-let gen_function : statement -> unit = function(* llvm.params llvm.set_value_name *)
-  | Proto(p) -> gen_proto p;
-| Function(p,s) ->let f = gen_proto p in
-(* Create a new basic block to start insertion into. *)
-      let entry_bb = append_block context "entry" f in
-      position_at_end entry_bb builder;
-ignore(gen_statement s)
+let gen_function : program_unit -> unit = function(* llvm.params llvm.set_value_name *)
+  | Proto(p) -> ignore(gen_proto p)
+  | Function(p,s) ->let f = gen_proto p in
+		    (* Create a new basic block to start insertion into. *)
+		    (* Set names for all arguments. *)
+		    let args = (match p with (_,_,args) -> args) in
+		    open_scope();
+		    Array.iteri (fun i a ->
+				 let n = args.(i) in
+				 Llvm.set_value_name n a;
+				 add n a;
+				) (Llvm.params f);
+		    let entry_bb = Llvm.append_block context "entry" f in
+		    Llvm.position_at_end entry_bb builder;
+		    ignore(gen_statement s);
+		    close_scope()
+
+let rec gen_program : program -> unit = function
+  | [] -> ()
+  | p::q -> gen_function p; Llvm.build_ret_void builder; gen_program q
 
 
 
 (* function that turns the code generated for an expression into a valid LLVM code *)
-let gen (s : statement) : unit =
-  let the_function = Llvm.declare_function "main" (Llvm.function_type int_type [||]) the_module in
-  let bb = Llvm.append_block context "entry" the_function in
-  Llvm.position_at_end bb builder;
-  gen_statement s;
-  ignore(Llvm.build_ret_void builder)
+let gen (p : program) : unit =
+  open_scope();
+  gen_program p;
+  close_scope()
