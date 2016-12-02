@@ -111,7 +111,9 @@ let rec gen_expression : expression -> Llvm.llvalue = function
 
   | Expr_Ident(id) ->
 
-     let symb = lookup id in
+     let symb = try lookup id with
+		|Not_found -> raise (Error "Undeclared variable")
+     in
      Llvm.build_load symb id builder
 		     
   | ECall (f_id, args) ->
@@ -135,17 +137,25 @@ let rec gen_expression : expression -> Llvm.llvalue = function
 	       
 let gen_print_item : print_item -> unit = function
     
-  | Print_Expr e -> ignore(gen_expression (ECall("printf",Array.make 1 e)))
-
+  | Print_Expr e -> (* ignore(gen_expression (ECall("printf",Array.make 1 e))) *)
+     (* Look up the name in the module table. *)
+     let s = [|const_string "%d";  (gen_expression e)|] in 
+     ignore(Llvm.build_call func_printf s"callprint" builder)
   | Print_Text s -> ignore(Llvm.build_call func_printf (Array.make 1 (const_string s)) "callprint" builder)
 
 			  
 let gen_dec_item : dec_item -> unit = function
   | Dec_Ident (id) ->
-     let symb = Llvm.build_alloca int_type id builder in
+     let before_bb = Llvm.insertion_block builder in
+     let the_function = Llvm.block_parent before_bb in
+     let symb =  create_entry_block_alloca the_function id int_type in
      add id symb
 	 
-  | _ -> raise TODO
+  | Dec_Array (id,size) ->
+     let before_bb = Llvm.insertion_block builder in
+     let the_function = Llvm.block_parent before_bb in
+     let symb =  create_entry_block_array_alloca the_function id int_type size in
+     add id symb
 
 	       
 let rec gen_declaration : declaration -> unit = function
@@ -158,6 +168,9 @@ let rec gen_statement : statement -> unit = function
   | Return(e) -> let t = gen_expression e in
 		 ignore(Llvm.build_ret t builder)
   | Assign(LHS_Ident(lhs),e) -> let symb = lookup lhs in
+				let value = gen_expression e in
+				ignore(Llvm.build_store value symb builder)
+  | Assign(LHS_ArrayElem(id, e),e) -> let symb = lookup i in (* WIP *)
 				let value = gen_expression e in
 				ignore(Llvm.build_store value symb builder)
   | Block(d,sl) -> open_scope();
@@ -271,8 +284,12 @@ let gen_proto : proto -> Llvm.llvalue = function
      let ft = Llvm.function_type ty parameters in
        match Llvm.lookup_function id the_module with
        | None ->
-		 let f = Llvm.declare_function id ft the_module in
-		 
+	  let f = Llvm.declare_function id ft the_module in
+		 		    	  		    Array.iteri (fun i a ->
+				 let n = args.(i) in
+				 Llvm.set_value_name n a;
+				 add n a;
+							) (Llvm.params f);
 		 f
        | Some f ->
 
@@ -289,21 +306,34 @@ let gen_function : program_unit -> unit = function(* llvm.params llvm.set_value_
   | Function(p,s) ->let f = gen_proto p in
 		    (* Create a new basic block to start insertion into. *)
 		    (* Set names for all arguments. *)
-		    let args = (match p with (_,_,args) -> args) in
+		    let ty = (match p with (t,_,_) -> if  t = Type_Int then int_type else void_type) in
 		    open_scope();
-		    Array.iteri (fun i a ->
-				 let n = args.(i) in
-				 Llvm.set_value_name n a;
-				 add n a;
-				) (Llvm.params f);
+
+		    let args = match p with
+		      | (_, _,args) -> args
+		    in
+		    
 		    let entry_bb = Llvm.append_block context "entry" f in
 		    Llvm.position_at_end entry_bb builder;
+		    Array.iteri (fun i ai ->
+				 let var_name = args.(i) in
+				 (* Create an alloca for this variable. *)
+				 let alloca = create_entry_block_alloca f var_name ty in
+    
+				 (* Store the initial value into the alloca. *)
+				 ignore(Llvm.build_store ai alloca builder);
+
+				 (* Add arguments to variable symbol table. *)
+				 add var_name alloca;
+				) (Llvm.params f);
 		    ignore(gen_statement s);
+		    let zero = const_int 0 in
+		    if ty = void_type then ignore(Llvm.build_ret_void builder) else ignore(Llvm.build_ret zero builder);
 		    close_scope()
 
 let rec gen_program : program -> unit = function
   | [] -> ()
-  | p::q -> gen_function p; Llvm.build_ret_void builder; gen_program q
+  | p::q -> gen_function p; gen_program q
 
 
 
