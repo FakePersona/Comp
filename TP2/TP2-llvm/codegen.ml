@@ -130,6 +130,7 @@ let rec gen_expression : expression -> Llvm.llvalue = function
      if Array.length params == Array.length args then () else
        raise (Error "incorrect # arguments passed");
      let args = Array.map gen_expression args in
+
      Llvm.build_call f args "calltmp" builder
 		     
   | _ -> raise TODO
@@ -139,10 +140,15 @@ let gen_print_item : print_item -> unit = function
     
   | Print_Expr e -> (* ignore(gen_expression (ECall("printf",Array.make 1 e))) *)
      (* Look up the name in the module table. *)
-     let s = [|const_string "%d";  (gen_expression e)|] in 
-     ignore(Llvm.build_call func_printf s"callprint" builder)
+     let s = [|const_string "%d";  (gen_expression e)|] in
+     ignore(Llvm.build_call func_printf s "callprint" builder)
   | Print_Text s -> ignore(Llvm.build_call func_printf (Array.make 1 (const_string s)) "callprint" builder)
 
+let gen_read_item : read_item -> unit = function
+
+  | LHS_Ident id -> let s = [|const_string "%d"; lookup id|] in
+		    ignore(Llvm.build_call func_scanf s "callread" builder)
+  | _ -> raise TODO
 			  
 let gen_dec_item : dec_item -> unit = function
   | Dec_Ident (id) ->
@@ -170,9 +176,10 @@ let rec gen_statement : statement -> unit = function
   | Assign(LHS_Ident(lhs),e) -> let symb = lookup lhs in
 				let value = gen_expression e in
 				ignore(Llvm.build_store value symb builder)
-  | Assign(LHS_ArrayElem(id, e),e) -> let symb = lookup i in (* WIP *)
-				let value = gen_expression e in
-				ignore(Llvm.build_store value symb builder)
+  | Assign(LHS_ArrayElem(id, e),assigned) -> let arr = lookup id in
+					  let symb = Llvm.build_gep arr [|const_int 0; gen_expression e|] "assignarray" builder in
+  					  let value = gen_expression assigned in
+  					  ignore(Llvm.build_store value symb builder)
   | Block(d,sl) -> open_scope();
 		   gen_declaration d;
 		   ignore(List.map gen_statement sl);
@@ -273,14 +280,15 @@ let rec gen_statement : statement -> unit = function
      if Array.length params == Array.length args then () else
        raise (Error "incorrect # arguments passed");
      let args = Array.map gen_expression args in
-     ignore(Llvm.build_call f args "calltmp" builder)
+     ignore(Llvm.build_call f args "" builder)
   | Print l -> ignore(List.map gen_print_item l)
+  | Read l -> ignore(List.map gen_read_item l)
   | _ -> raise TODO
 
 let gen_proto : proto -> Llvm.llvalue = function
   | (t,id,args) -> 
      let ty = (if  t = Type_Int then int_type else void_type) in
-     let parameters = Array.make (Array.length args) ty in
+     let parameters = Array.make (Array.length args) int_type in
      let ft = Llvm.function_type ty parameters in
        match Llvm.lookup_function id the_module with
        | None ->
@@ -318,7 +326,7 @@ let gen_function : program_unit -> unit = function(* llvm.params llvm.set_value_
 		    Array.iteri (fun i ai ->
 				 let var_name = args.(i) in
 				 (* Create an alloca for this variable. *)
-				 let alloca = create_entry_block_alloca f var_name ty in
+				 let alloca = create_entry_block_alloca f var_name int_type in
     
 				 (* Store the initial value into the alloca. *)
 				 ignore(Llvm.build_store ai alloca builder);
