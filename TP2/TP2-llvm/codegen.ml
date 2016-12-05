@@ -115,7 +115,11 @@ let rec gen_expression : expression -> Llvm.llvalue = function
 		|Not_found -> raise (Error "Undeclared variable")
      in
      Llvm.build_load symb id builder
-		     
+
+  | ArrayElem(id,e) -> let arr = lookup id in
+		       let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
+  		       Llvm.build_load symb id builder
+    
   | ECall (f_id, args) ->
      
      (* Look up the name in the module table. *)
@@ -133,7 +137,6 @@ let rec gen_expression : expression -> Llvm.llvalue = function
 
      Llvm.build_call f args "calltmp" builder
 		     
-  | _ -> raise TODO
 
 	       
 let gen_print_item : print_item -> unit = function
@@ -148,7 +151,11 @@ let gen_read_item : read_item -> unit = function
 
   | LHS_Ident id -> let s = [|const_string "%d"; lookup id|] in
 		    ignore(Llvm.build_call func_scanf s "callread" builder)
-  | _ -> raise TODO
+
+  | LHS_ArrayElem(id,e) -> let arr = lookup id in						  
+		     let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
+		     let s = [|const_string "%d"; symb|] in
+		    ignore(Llvm.build_call func_scanf s "callread" builder)
 			  
 let gen_dec_item : dec_item -> unit = function
   | Dec_Ident (id) ->
@@ -177,7 +184,7 @@ let rec gen_statement : statement -> unit = function
 				let value = gen_expression e in
 				ignore(Llvm.build_store value symb builder)
   | Assign(LHS_ArrayElem(id, e),assigned) -> let arr = lookup id in
-					  let symb = Llvm.build_gep arr [|const_int 0; gen_expression e|] "assignarray" builder in
+					  let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
   					  let value = gen_expression assigned in
   					  ignore(Llvm.build_store value symb builder)
   | Block(d,sl) -> open_scope();
@@ -283,7 +290,6 @@ let rec gen_statement : statement -> unit = function
      ignore(Llvm.build_call f args "" builder)
   | Print l -> ignore(List.map gen_print_item l)
   | Read l -> ignore(List.map gen_read_item l)
-  | _ -> raise TODO
 
 let gen_proto : proto -> Llvm.llvalue = function
   | (t,id,args) -> 
