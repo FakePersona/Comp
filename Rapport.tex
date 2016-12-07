@@ -1,0 +1,74 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+
+\begin{document}
+
+\section{Introduction}
+
+Le TP consistait à réaliser, en utilisant Ocaml et les librairies LLVM, un compilateur pour le 
+langage VSL+ afin de générer du code 3 adresses. Plus précisément, on devait réaliser la 
+vérification de type ainsi que la génération de code à partir d'un AST. En effet les analyseurs lexical 
+et syntaxique de VSL+ étaient déjà fournis (c'est eux qui produisent la représentation sous forme 
+d'AST d'un programme VSL+).
+
+\section{Méthodologie de travail}
+
+La majeure partie du travail a été effectué en TP  à deux sur le même
+ordinateur. Pour ce qui est du code écrit hors TP, Nicolas Pompidor s'est chargé
+des expressions simples et d'une partie des structures de contrôle tandis que
+Rémy Sun a écrit le code de gestion des fonctions et de gestion des tableaux.
+
+Pour l'organisation du code, il y a été créé dans codegen.ml une fonction par type dans 
+l'ast.ml. Et c'est dans codegen.ml qu'a été écrit l'ensemble du code.
+Pour les tests, nous en avons créé pour chaque nouvelle fonctionnalité du compilateur. Puis, 
+quand ceux-ci furent fonctionnels, nous avons exécutés les tests fournis.
+
+L'ensemble des tests proposés dans le fichier de test ont été passés avec
+optimisation, à l'exception de \texttt{level4testfact.vsl}. En effet, il
+semblerait que si la seule instruction dans le else est un RETURN,
+l'optimisateur décide d'éliminer le bloc (comportement illicite).
+
+\section{Ce qui a été réalisé}
+
+\paragraph{Les expressions simples}
+Complètement réalisé.
+Nous avons repris la structure pour l'addition et on l'a appliqué pour les autres expressions.
+ 
+\paragraph{L'instruction d'affectation}
+ Complètement réalisé.
+On stocke la valeur grâce à \texttt{Llvm.build\_store} et on retient
+l'emplacement Llvm par un lien symbolique au nom de variable déclaré.
+
+\paragraph{La gestion des blocs}
+Complètement réalisé.
+Ouverture d'un scope au début du bloc, on réalise la déclaration puis le statement et on ferme le 
+scope.
+
+\paragraph{La declaration des variables}
+Complètement réalisé.
+
+\paragraph{Les expressions avec variables}
+Complètement réalisé
+
+\paragraph{Les instructions de contrôle }
+Complètement réalisé.
+On créer un bloc pour le if où on évalue la condition puis soit on se branche sur le block du ''then'' 
+ou alors du ''else'' puis ces deux blocs se branchent sur le ''eblock'' à la
+fin. Une instruction phi est mis en place par l'optimisateur pour gérer le
+branchement sur le bloc de fin.
+
+\paragraph{La definition et l'appel de fonctions (avec les prototypes
+)}
+Complètement réalisé.
+
+
+\paragraph{Les fonctions de la bibliotheque}
+Complètement réalisé
+
+
+\paragraph{La gestion des tableaux (declaration, expression, affectation et
+  lecture)} 
+Complètement réalisé
+
+\end{document}

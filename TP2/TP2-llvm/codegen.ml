@@ -408,30 +408,49 @@ let rec gen_statement : statement -> unit = function
 		    ignore(Llvm.build_cond_br cond_val true_bb end_bb builder);
 		    
 		    Llvm.position_at_end end_bb builder
-  | While(c,s) ->  let before_bb = Llvm.insertion_block builder in
+
+
+
+(*** Generates code for while procedure ***)
+  | While(c,s) ->
+(* Retrieve current function *)
+let before_bb = Llvm.insertion_block builder in
 		   let the_function = Llvm.block_parent before_bb in
 
+(* Create test block *)
 		   let while_bb =  Llvm.append_block context "while" the_function in
 		   Llvm.position_at_end while_bb builder;
 
+(* Computing test value *)
 		   let cond = gen_expression c in
 		   let zero = const_int 0 in
 		   let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "while" builder in
-		   
+
+(* Declaring end block *)
      		   let end_bb = Llvm.append_block context "eblock" the_function in
-		    
+
+(* Declaring loop block and filling it *)
 		    let loop_bb = Llvm.append_block context "loop" the_function in
 		    Llvm.position_at_end loop_bb builder;		    
 		    let i_s = gen_statement s in
+
+(* Branching back to test block at end of loop *)
 		    ignore(Llvm.build_br while_bb builder);
-		    
+
+(* Build branching depending on logical test *)
 		    Llvm.position_at_end while_bb builder;
 		    ignore(Llvm.build_cond_br cond_val loop_bb end_bb builder);
 
+(* Linking current block to test block *)
 		    Llvm.position_at_end before_bb builder;
 		    ignore(Llvm.build_br while_bb builder);
-		    
+
+(* Repositionning builder at end block *)
 		    Llvm.position_at_end end_bb builder
+
+
+
+(*** Call f_id on args much like ECall ***)
   | SCall (f_id, args) ->
      (* Look up the name in the module table. *)
      let f =
@@ -446,37 +465,63 @@ let rec gen_statement : statement -> unit = function
        raise (Error "incorrect # arguments passed");
      let args = Array.map gen_expression args in
      ignore(Llvm.build_call f args "" builder)
+
+
+
+(*** Map code generating routine on every element of l ***)
   | Print l -> ignore(List.map gen_print_item l)
   | Read l -> ignore(List.map gen_read_item l)
 
+
+
+
+(*******************************************)
+(*****  Generating code for prototypes *****)
+(*******************************************)
+
 let gen_proto : proto -> Llvm.llvalue = function
-  | (t,id,args) -> 
+  | (t,id,args) ->
+(* Set up function type *)
      let ty = (if  t = Type_Int then int_type else void_type) in
      let parameters = Array.make (Array.length args) int_type in
+
+(* Trying to create function function *)
      let ft = Llvm.function_type ty parameters in
        match Llvm.lookup_function id the_module with
+
+(* Define if not defined yet *)
        | None ->
 	  let f = Llvm.declare_function id ft the_module in
-		 		    	  		    Array.iteri (fun i a ->
-				 let n = args.(i) in
-				 Llvm.set_value_name n a;
-				 add n a;
-							) (Llvm.params f);
+		 		    	  		    (* Array.iteri (fun i a -> *)
+				 (* let n = args.(i) in *)
+				 (* Llvm.set_value_name n a; *)
+				 (* add n a; *)
+				 (*  		) (Llvm.params f); *)
 		 f
-       | Some f ->
 
+(* If already defined, just check there is no issue *)
+       | Some f ->
           if Llvm.block_begin f <> Llvm.At_end f then
             raise (Error "Already defined function");
-	  
           if Llvm.element_type (Llvm.type_of f) <> ft then
             raise (Error "Function declared with more parameters");
           f
 
 
+
+
+(******************************************)
+(*****  Generating code for functions *****)
+(******************************************)
+
 let gen_function : program_unit -> unit = function(* llvm.params llvm.set_value_name *)
-  | Proto(p) -> ignore(gen_proto p)
-  | Function(p,s) ->let f = gen_proto p in
-		    (* Create a new basic block to start insertion into. *)
+(*** Generates code for prototype by calling prototype routine ***)
+  | Proto(p) ->
+ignore(gen_proto p)
+
+(*** Generates code for function ***)
+  | Function(p,s) ->
+let f = gen_proto p in
 		    (* Set names for all arguments. *)
 		    let ty = (match p with (t,_,_) -> if  t = Type_Int then int_type else void_type) in
 		    open_scope();
@@ -484,14 +529,14 @@ let gen_function : program_unit -> unit = function(* llvm.params llvm.set_value_
 		    let args = match p with
 		      | (_, _,args) -> args
 		    in
-		    
+
 		    let entry_bb = Llvm.append_block context "entry" f in
 		    Llvm.position_at_end entry_bb builder;
 		    Array.iteri (fun i ai ->
 				 let var_name = args.(i) in
 				 (* Create an alloca for this variable. *)
 				 let alloca = create_entry_block_alloca f var_name int_type in
-    
+
 				 (* Store the initial value into the alloca. *)
 				 ignore(Llvm.build_store ai alloca builder);
 
