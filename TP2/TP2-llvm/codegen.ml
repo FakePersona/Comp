@@ -106,11 +106,14 @@ let create_entry_block_array_alloca the_function var_name typ size =
 (********************************************)
 
 let rec gen_expression : expression -> Llvm.llvalue = function
-(*** Creates Llvm constant for vsl constant ***)
+
+  (*** Creates Llvm constant for vsl constant ***)
   | Const n ->
      const_int n
 
-(*** Computes and stores sum of two expressions ***)
+
+
+  (*** Computes and stores sum of two expressions ***)
   | Plus (e1,e2) ->
 
       let t1 = gen_expression e1 in
@@ -120,7 +123,9 @@ let rec gen_expression : expression -> Llvm.llvalue = function
       Llvm.build_add t1 t2 "plus" builder
 	(* appends an 'add' instruction and returns the result llvalue *)
 
-(*** Computes and stores difference of two expressions ***)
+
+
+  (*** Computes and stores difference of two expressions ***)
   | Minus (e1,e2) ->
 
      let t1 = gen_expression e1 in
@@ -130,7 +135,9 @@ let rec gen_expression : expression -> Llvm.llvalue = function
       Llvm.build_sub t1 t2 "minus" builder
 	(* appends a 'sub' instruction and returns the result llvalue *)
 
-(*** Computes and stores product of two expressions ***)
+
+
+  (*** Computes and stores product of two expressions ***)
   | Mul (e1,e2) ->
 
      let t1 = gen_expression e1 in
@@ -140,7 +147,9 @@ let rec gen_expression : expression -> Llvm.llvalue = function
       Llvm.build_mul t1 t2 "mul" builder
 	(* appends a 'mul' instruction and returns the result llvalue *)
 
-(*** Computes and stores division of two expressions ***)
+
+
+  (*** Computes and stores division of two expressions ***)
   | Div (e1,e2) ->
 
      let t1 = gen_expression e1 in
@@ -150,35 +159,49 @@ let rec gen_expression : expression -> Llvm.llvalue = function
       Llvm.build_udiv t1 t2 "div" builder
   (* appends a 'div' instruction and returns the result llvalue *)
 
-(*** Looks up and loads value of variable id ***)
-  | Expr_Ident(id) ->
 
+
+  (*** Looks up and loads value of variable id ***)
+  | Expr_Ident(id) ->
+     (* Look up id's llvalue *)
      let symb = try lookup id with
-		|Not_found -> raise (Error "Undeclared variable")
+		            |Not_found -> raise (Error "Undeclared variable")
      in
+
+     (* Build load instruction *)
      Llvm.build_load symb id builder
 
-(*** Looks up and loads eth value of array id ***)
-  | ArrayElem(id,e) -> let arr = lookup id in
-		       let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
-  		       Llvm.build_load symb id builder
 
-(*** Calls function f_id on args and returns return value ***)
+
+  (*** Looks up and loads eth value of array id ***)
+  | ArrayElem(id,e) ->
+     (* Look up pointer to eth element of id *)
+     let arr = lookup id in
+		 let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
+
+     (* Build load instruction *)
+  	 Llvm.build_load symb id builder
+
+
+
+  (*** Calls function f_id on args and returns return value ***)
   | ECall (f_id, args) ->
-
-     (* Look up the name in the module table. *)
+     (* Look up f_id in the module table. *)
      let f =
        match Llvm.lookup_function f_id the_module with
        | Some f -> f
        | None -> raise (Error "unknown function called")
      in
+     p
+     (* Check arguments types *)
      let params = Llvm.params f in
-
-     (* If argument mismatch error. *)
      if Array.length params == Array.length args then () else
        raise (Error "incorrect # arguments passed");
+
+     (* Compute arguments values *)
      let args = Array.map gen_expression args in
 
+     (* Build call instruction *)
      Llvm.build_call f args "calltmp" builder
 
 
@@ -196,7 +219,8 @@ let gen_print_item : print_item -> unit = function
      ignore(Llvm.build_call func_printf s "callprint" builder)
 
 (*** Calls C's printf to print s ***)
-  | Print_Text s -> ignore(Llvm.build_call func_printf (Array.make 1 (const_string s)) "callprint" builder)
+  | Print_Text s ->
+     ignore(Llvm.build_call func_printf (Array.make 1 (const_string s)) "callprint" builder)
 
 
 
@@ -208,14 +232,18 @@ let gen_print_item : print_item -> unit = function
 let gen_read_item : read_item -> unit = function
 
 (*** Prepares valid input for C's scanf and calls it ***)
-  | LHS_Ident id -> let s = [|const_string "%d"; lookup id|] in
-		    ignore(Llvm.build_call func_scanf s "callread" builder)
+  | LHS_Ident id ->
+     let s = [|const_string "%d"; lookup id|] in
+		 ignore(Llvm.build_call func_scanf s "callread" builder)
+
+
 
 (*** Prepares valid input for C's scanf while looking up array's eth position and calls it ***)
-  | LHS_ArrayElem(id,e) -> let arr = lookup id in
-		     let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
-		     let s = [|const_string "%d"; symb|] in
-		    ignore(Llvm.build_call func_scanf s "callread" builder)
+  | LHS_ArrayElem(id,e) ->
+     let arr = lookup id in
+		 let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
+		 let s = [|const_string "%d"; symb|] in
+		 ignore(Llvm.build_call func_scanf s "callread" builder)
 
 
 
@@ -228,15 +256,23 @@ let gen_dec_item : dec_item -> unit = function
 
 (*** Allocate id variable in entry block and add to symbol table ***)
   | Dec_Ident (id) ->
+     (* Retrieve current function *)
      let before_bb = Llvm.insertion_block builder in
      let the_function = Llvm.block_parent before_bb in
+
+     (* Allocating *)
      let symb =  create_entry_block_alloca the_function id int_type in
      add id symb
 
+
+
 (*** Allocate id array of length size in entry block and add to symbol table ***)
   | Dec_Array (id,size) ->
+     (* Retrieve current function *)
      let before_bb = Llvm.insertion_block builder in
      let the_function = Llvm.block_parent before_bb in
+
+     (* Allocating *)
      let symb =  create_entry_block_array_alloca the_function id int_type size in
      add id symb
 
@@ -255,57 +291,97 @@ let rec gen_declaration : declaration -> unit = function
 
 
 
-(******************************************)
+(********************************************)
 (*****  Generating code for statement3s *****)
-(******************************************)
+(********************************************)
 
 let rec gen_statement : statement -> unit = function
-  | Return(e) -> let t = gen_expression e in
+
+  (*** Build return instructino for e ***)
+  | Return(e) ->
+     let t = gen_expression e in
 		 ignore(Llvm.build_ret t builder)
-  | Assign(LHS_Ident(lhs),e) -> let symb = lookup lhs in
-				let value = gen_expression e in
-				ignore(Llvm.build_store value symb builder)
-  | Assign(LHS_ArrayElem(id, e),assigned) -> let arr = lookup id in
-					  let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
-  					  let value = gen_expression assigned in
-  					  ignore(Llvm.build_store value symb builder)
-  | Block(d,sl) -> open_scope();
-		   gen_declaration d;
-		   ignore(List.map gen_statement sl);
-		   close_scope ()
-  | If(c,t,Some e) ->let before_bb = Llvm.insertion_block builder in
-		   let the_function = Llvm.block_parent before_bb in
 
-		   let if_bb =  Llvm.append_block context "if" the_function in
-		   Llvm.position_at_end if_bb builder;
 
-		   let cond = gen_expression c in
-		    let zero = const_int 0 in
-		    let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "ifcond" builder in
-		    
-		    let if_bb = Llvm.insertion_block builder in
-		    let the_function = Llvm.block_parent if_bb in
+  (*** Assigns value e to lhs ***)
+  | Assign(LHS_Ident(lhs),e) ->
+     (* Looking up lhs and computing e *)
+     let symb = try lookup lhs with
+                |Not_found -> raise (Error "Undeclared variable")
+     in
+		 let value = gen_expression e in
 
-		    let end_bb = Llvm.append_block context "eblock" the_function in
-		    
-		    let true_bb = Llvm.append_block context "itrue" the_function in
-		    Llvm.position_at_end true_bb builder;		    
-		    let i_t = gen_statement t in
-		    ignore(Llvm.build_br end_bb builder);
-		    
-		    let false_bb = Llvm.append_block context "ifalse" the_function in
-		    Llvm.position_at_end false_bb builder;
-		    let i_f = gen_statement e in
-		    ignore(Llvm.build_br end_bb builder);
+     (* Building store instruction *)
+ 		 ignore(Llvm.build_store value symb builder)
 
-		    Llvm.position_at_end before_bb builder;
-		    ignore(Llvm.build_br if_bb builder);
-		    
-		    Llvm.position_at_end if_bb builder;
-		    ignore(Llvm.build_cond_br cond_val true_bb false_bb builder);
+  (*** Assigns value assigned to eth  elements of array id ***)
+  | Assign(LHS_ArrayElem(id, e),assigned)->
+     (* Lookup array position and eth element *)
+     let arr = try lookup id with
+               |Not_found -> raise (Error "Undeclared variable")
+     in
+     let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
+  	 let value = gen_expression assigned in
 
-		    Llvm.position_at_end end_bb builder
+     (* Building store instruction *)
+  	 ignore(Llvm.build_store value symb builder)
 
+
+  (*** Generates declarations d and statements sl in an enclosed scope ***)
+  | Block(d,sl) ->
+     open_scope();
+		 gen_declaration d;
+		 ignore(List.map gen_statement sl);
+		 close_scope ()
+
+
+
+  (*** Generates if instuction with else option ***)
+  | If(c,t,Some e) ->
+     (* Retrieve the current function *)
+     let before_bb = Llvm.insertion_block builder in
+		 let the_function = Llvm.block_parent before_bb in
+
+     (* Create if block *)
+		 let if_bb =  Llvm.append_block context "if" the_function in
+		 Llvm.position_at_end if_bb builder;
+
+     (* Computing test value *)
+		 let cond = gen_expression c in
+		 let zero = const_int 0 in
+		 let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "ifcond" builder in
+
+     (* (\* Retrieving the_function *\) *)
+		 (* let if_bb = Llvm.insertion_block builder in *)
+		 (* let the_function = Llvm.block_parent if_bb in *)
+
+     (* Creating end_block *)
+		 let end_bb = Llvm.append_block context "eblock" the_function in
+
+     (* Creating true block, generating statement and branching to end_block*)
+		 let true_bb = Llvm.append_block context "itrue" the_function in
+		 Llvm.position_at_end true_bb builder;
+		 let i_t = gen_statement t in
+		 ignore(Llvm.build_br end_bb builder);
+
+     (* Creating true block, generating statement and branching to end_block*)
+		 let false_bb = Llvm.append_block context "ifalse" the_function in
+		 Llvm.position_at_end false_bb builder;
+		 let i_f = gen_statement e in
+		 ignore(Llvm.build_br end_bb builder);
+
+     (* Linking previous block to if block *)
+		 Llvm.position_at_end before_bb builder;
+		 ignore(Llvm.build_br if_bb builder);
+
+     (* Creating branching of if block *)
+		 Llvm.position_at_end if_bb builder;
+		 ignore(Llvm.build_cond_br cond_val true_bb false_bb builder);
+
+     (* Returning to end block *)
+		 Llvm.position_at_end end_bb builder
+
+  (* Generates if instuction without else option *)
   | If(c,t,None) -> let before_bb = Llvm.insertion_block builder in
 		   let the_function = Llvm.block_parent before_bb in
 
@@ -347,7 +423,6 @@ let rec gen_statement : statement -> unit = function
 		    Llvm.position_at_end loop_bb builder;		    
 		    let i_s = gen_statement s in
 		    ignore(Llvm.build_br while_bb builder);
-		    
 		    
 		    Llvm.position_at_end while_bb builder;
 		    ignore(Llvm.build_cond_br cond_val loop_bb end_bb builder);
