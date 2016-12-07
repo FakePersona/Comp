@@ -1,0 +1,11 @@
+{
+	INT i
+	i := 0
+	WHILE 6-i
+	DO
+		i := i+2
+	DONE
+
+	RETURN i
+}      
+		
