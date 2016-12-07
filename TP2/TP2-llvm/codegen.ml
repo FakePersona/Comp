@@ -192,7 +192,7 @@ let rec gen_expression : expression -> Llvm.llvalue = function
        | Some f -> f
        | None -> raise (Error "unknown function called")
      in
-     p
+
      (* Check arguments types *)
      let params = Llvm.params f in
      if Array.length params == Array.length args then () else
@@ -352,8 +352,8 @@ let rec gen_statement : statement -> unit = function
 		 let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "ifcond" builder in
 
      (* (\* Retrieving the_function *\) *)
-		 (* let if_bb = Llvm.insertion_block builder in *)
-		 (* let the_function = Llvm.block_parent if_bb in *)
+     (* 		 let if_bb = Llvm.insertion_block builder in *)
+     (* 		 let the_function = Llvm.block_parent if_bb in *)
 
      (* Creating end_block *)
 		 let end_bb = Llvm.append_block context "eblock" the_function in
@@ -381,7 +381,8 @@ let rec gen_statement : statement -> unit = function
      (* Returning to end block *)
 		 Llvm.position_at_end end_bb builder
 
-  (* Generates if instuction without else option *)
+				      
+  (*** Generates if instruction without else option, same as above ***)
   | If(c,t,None) -> let before_bb = Llvm.insertion_block builder in
 		   let the_function = Llvm.block_parent before_bb in
 

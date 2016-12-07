@@ -1,0 +1,48 @@
+PROTO INT pair(x)
+PROTO INT syracuse(y)
+FUNC VOID main()
+{
+     INT i, k, t[6]
+     READ k
+     t[5] := syracuse(k)
+     i := 0
+     WHILE 5-i DO
+     {
+     	   t[i] := syracuse(i)
+	   i := i+1
+	   }	   
+DONE
+    i:=0
+    {
+	INT i
+	i:= 5
+	}
+    WHILE 6-i DO
+    {
+    	  PRINT t[i], "\n"
+	  i := i + 1
+	  }
+	  DONE
+}
+
+FUNC INT pair(x) {
+INT p
+IF x-(x/2*2)
+THEN
+	p := 0
+ELSE
+	p := 1
+FI
+RETURN p
+}
+
+FUNC INT syracuse(x) {
+INT s
+IF pair(x)
+THEN
+	s := x/2
+ELSE
+	s := x*3+1
+FI
+RETURN s
+}
