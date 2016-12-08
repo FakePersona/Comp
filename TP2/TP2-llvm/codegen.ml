@@ -351,10 +351,6 @@ let rec gen_statement : statement -> unit = function
 		 let zero = const_int 0 in
 		 let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "ifcond" builder in
 
-     (* (\* Retrieving the_function *\) *)
-     (* 		 let if_bb = Llvm.insertion_block builder in *)
-     (* 		 let the_function = Llvm.block_parent if_bb in *)
-
      (* Creating end_block *)
 		 let end_bb = Llvm.append_block context "eblock" the_function in
 
@@ -381,76 +377,77 @@ let rec gen_statement : statement -> unit = function
      (* Returning to end block *)
 		 Llvm.position_at_end end_bb builder
 
-				      
+
+
   (*** Generates if instruction without else option, same as above ***)
   | If(c,t,None) -> let before_bb = Llvm.insertion_block builder in
-		   let the_function = Llvm.block_parent before_bb in
+		                let the_function = Llvm.block_parent before_bb in
 
-		   let if_bb =  Llvm.append_block context "if" the_function in
-		   Llvm.position_at_end if_bb builder;
+		                let if_bb =  Llvm.append_block context "if" the_function in
+		                Llvm.position_at_end if_bb builder;
 
-		   let cond = gen_expression c in
-		   let zero = const_int 0 in
-		   let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "ifcond" builder in
-	   
-		    let end_bb = Llvm.append_block context "eblock" the_function in
-		    
-		    let true_bb = Llvm.append_block context "itrue" the_function in
-		    Llvm.position_at_end true_bb builder;		    
-		    let i_t = gen_statement t in
-		    ignore(Llvm.build_br end_bb builder);
-		    
-		    Llvm.position_at_end before_bb builder;
-		    ignore(Llvm.build_br if_bb builder);
+		                let cond = gen_expression c in
+		                let zero = const_int 0 in
+		                let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "ifcond" builder in
+	                  
+		                let end_bb = Llvm.append_block context "eblock" the_function in
+		                
+		                let true_bb = Llvm.append_block context "itrue" the_function in
+		                Llvm.position_at_end true_bb builder;		    
+		                let i_t = gen_statement t in
+		                ignore(Llvm.build_br end_bb builder);
+		                
+		                Llvm.position_at_end before_bb builder;
+		                ignore(Llvm.build_br if_bb builder);
 
-   
-		    Llvm.position_at_end if_bb builder;
-		    ignore(Llvm.build_cond_br cond_val true_bb end_bb builder);
-		    
-		    Llvm.position_at_end end_bb builder
+                    
+		                Llvm.position_at_end if_bb builder;
+		                ignore(Llvm.build_cond_br cond_val true_bb end_bb builder);
+		                
+		                Llvm.position_at_end end_bb builder
 
 
 
-(*** Generates code for while procedure ***)
+  (*** Generates code for while procedure ***)
   | While(c,s) ->
-(* Retrieve current function *)
-let before_bb = Llvm.insertion_block builder in
-		   let the_function = Llvm.block_parent before_bb in
+     (* Retrieve current function *)
+     let before_bb = Llvm.insertion_block builder in
+		 let the_function = Llvm.block_parent before_bb in
 
-(* Create test block *)
-		   let while_bb =  Llvm.append_block context "while" the_function in
-		   Llvm.position_at_end while_bb builder;
+     (* Create test block *)
+		 let while_bb =  Llvm.append_block context "while" the_function in
+		 Llvm.position_at_end while_bb builder;
 
-(* Computing test value *)
-		   let cond = gen_expression c in
-		   let zero = const_int 0 in
-		   let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "while" builder in
+     (* Computing test value *)
+		 let cond = gen_expression c in
+		 let zero = const_int 0 in
+		 let cond_val = Llvm.build_icmp Llvm.Icmp.Ne cond zero "while" builder in
 
-(* Declaring end block *)
-     		   let end_bb = Llvm.append_block context "eblock" the_function in
+     (* Declaring end block *)
+     let end_bb = Llvm.append_block context "eblock" the_function in
 
-(* Declaring loop block and filling it *)
-		    let loop_bb = Llvm.append_block context "loop" the_function in
-		    Llvm.position_at_end loop_bb builder;		    
-		    let i_s = gen_statement s in
+     (* Declaring loop block and filling it *)
+		 let loop_bb = Llvm.append_block context "loop" the_function in
+		 Llvm.position_at_end loop_bb builder;		    
+		 let i_s = gen_statement s in
 
-(* Branching back to test block at end of loop *)
-		    ignore(Llvm.build_br while_bb builder);
+     (* Branching back to test block at end of loop *)
+		 ignore(Llvm.build_br while_bb builder);
 
-(* Build branching depending on logical test *)
-		    Llvm.position_at_end while_bb builder;
-		    ignore(Llvm.build_cond_br cond_val loop_bb end_bb builder);
+     (* Build branching depending on logical test *)
+		 Llvm.position_at_end while_bb builder;
+		 ignore(Llvm.build_cond_br cond_val loop_bb end_bb builder);
 
-(* Linking current block to test block *)
-		    Llvm.position_at_end before_bb builder;
-		    ignore(Llvm.build_br while_bb builder);
+     (* Linking current block to test block *)
+		 Llvm.position_at_end before_bb builder;
+		 ignore(Llvm.build_br while_bb builder);
 
-(* Repositionning builder at end block *)
-		    Llvm.position_at_end end_bb builder
+     (* Repositionning builder at end block *)
+		 Llvm.position_at_end end_bb builder
 
 
 
-(*** Call f_id on args much like ECall ***)
+  (*** Call f_id on args much like ECall ***)
   | SCall (f_id, args) ->
      (* Look up the name in the module table. *)
      let f =
@@ -468,7 +465,7 @@ let before_bb = Llvm.insertion_block builder in
 
 
 
-(*** Map code generating routine on every element of l ***)
+  (*** Map code generating routine on every element of l ***)
   | Print l -> ignore(List.map gen_print_item l)
   | Read l -> ignore(List.map gen_read_item l)
 
@@ -481,31 +478,25 @@ let before_bb = Llvm.insertion_block builder in
 
 let gen_proto : proto -> Llvm.llvalue = function
   | (t,id,args) ->
-(* Set up function type *)
+     (* Set up function type *)
      let ty = (if  t = Type_Int then int_type else void_type) in
      let parameters = Array.make (Array.length args) int_type in
 
-(* Trying to create function function *)
+     (* Trying to create function function *)
      let ft = Llvm.function_type ty parameters in
-       match Llvm.lookup_function id the_module with
+     match Llvm.lookup_function id the_module with
 
-(* Define if not defined yet *)
-       | None ->
-	  let f = Llvm.declare_function id ft the_module in
-		 		    	  		    (* Array.iteri (fun i a -> *)
-				 (* let n = args.(i) in *)
-				 (* Llvm.set_value_name n a; *)
-				 (* add n a; *)
-				 (*  		) (Llvm.params f); *)
-		 f
+     (* Define if not defined yet *)
+     | None ->
+	      Llvm.declare_function id ft the_module
 
-(* If already defined, just check there is no issue *)
-       | Some f ->
-          if Llvm.block_begin f <> Llvm.At_end f then
-            raise (Error "Already defined function");
-          if Llvm.element_type (Llvm.type_of f) <> ft then
-            raise (Error "Function declared with more parameters");
-          f
+     (* If already defined, just check there is no issue *)
+     | Some f ->
+        if Llvm.block_begin f <> Llvm.At_end f then
+          raise (Error "Already defined function");
+        if Llvm.element_type (Llvm.type_of f) <> ft then
+          raise (Error "Function declared with more parameters");
+        f
 
 
 

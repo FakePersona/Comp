@@ -1,7 +1,7 @@
 \documentclass{article}
 
 \usepackage[utf8]{inputenc}
-
+\usepackage{xcolor, colortbl}
 \begin{document}
 
 \section{Introduction}
@@ -69,5 +69,59 @@ Complètement réalisé
 \paragraph{La gestion des tableaux (declaration, expression, affectation et
   lecture)} 
 Complètement réalisé
+
+\section{Tests}
+
+\subsection{Level 1}
+
+L'ensemble des tests du niveau 1 ont été passés sans encombre notable
+
+\subsection{Level 2}
+
+L'ensemble des tests du niveau 2 ont été passés sans encombre notable
+
+\subsection{Level 3}
+
+L'ensemble des tests du niveau 3 ont été passés sans encombre notable
+
+\subsection{Level 4}
+
+L'ensemble des tests du niveau 4 ont été passés sans encombre notable à
+l'exception de deux programmes de test: \texttt{level4divergence.vsl} et
+\texttt{level4testfact.vsl}
+
+\paragraph{level4divergence}
+
+Ce programme imprime Toto puis lance une boucle infinie. Néanmoins, à
+l'exécution du programme rien n'est imprimé. Cela s'explique assez simplement:
+Notre implémentation de printf n'est jamais qu'un appel à la fonction
+\texttt{printf} de C! Hors cette fonction n'imprime pas immédiatement le message
+demandé. Si ce message n'est pas de taille ``suffisante'' et ne contient pas de
+caractére indiquant à la fonction d'imprimer, le message est mis en attente dans
+un buffer. Hors notre programme ne s'arrête jamais, et n'a jamais de raison de
+vider son buffer. Ainsi, rien n'est imprimé! On vérifie bien qu'en imprimant
+``Toto$\backslash$n'' à la place de ``Toto'', le message est bien imprimé. \textcolor{blue}{Le
+  test fonctionne bien}
+
+\paragraph{level4testfact}
+
+Ce programme s'exécute bien sur le code non optimisé généré. Néanmoins, cela
+n'est pas le cas si on regarde le code optimisé. En effet, il y a un branchemnt
+IF effectuée, et la seule instruction dans la branche ELSE est un RETURN 1. Hors
+il semblerait que l'optimisateur pense possible de supprimer ce bloc, ce qui
+entraîne un problême de comportement.
+
+\subsection{Test proposé}
+
+Nous avons écris un fichier un fichier de test \texttt{myTest.vsl} qui nous
+semble couvrir les principaux points importants à tester.
+
+Les fonctionnalités couvertes sont:
+\begin{itemize}
+\item Calcul d'expressions simples
+\item Structure de contrôle
+\item Prototypes et fonctions
+\item 
+\end{itemize}
 
 \end{document}
