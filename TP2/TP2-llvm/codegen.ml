@@ -167,11 +167,9 @@ let rec gen_expression : expression -> Llvm.llvalue = function
      let symb = try lookup id with
 		            |Not_found -> raise (Error "Undeclared variable")
      in
-
+     
      (* Build load instruction *)
      Llvm.build_load symb id builder
-
-
 
   (*** Looks up and loads eth value of array id ***)
   | ArrayElem(id,e) ->
@@ -309,7 +307,7 @@ let rec gen_statement : statement -> unit = function
      let symb = try lookup lhs with
                 |Not_found -> raise (Error "Undeclared variable")
      in
-		 let value = gen_expression e in
+     let value = gen_expression e in
 
      (* Building store instruction *)
  		 ignore(Llvm.build_store value symb builder)
@@ -357,13 +355,13 @@ let rec gen_statement : statement -> unit = function
      (* Creating true block, generating statement and branching to end_block*)
 		 let true_bb = Llvm.append_block context "itrue" the_function in
 		 Llvm.position_at_end true_bb builder;
-		 let i_t = gen_statement t in
+		 gen_statement t;
 		 ignore(Llvm.build_br end_bb builder);
 
      (* Creating true block, generating statement and branching to end_block*)
 		 let false_bb = Llvm.append_block context "ifalse" the_function in
 		 Llvm.position_at_end false_bb builder;
-		 let i_f = gen_statement e in
+		 gen_statement e;
 		 ignore(Llvm.build_br end_bb builder);
 
      (* Linking previous block to if block *)
@@ -394,7 +392,7 @@ let rec gen_statement : statement -> unit = function
 		                
 		                let true_bb = Llvm.append_block context "itrue" the_function in
 		                Llvm.position_at_end true_bb builder;		    
-		                let i_t = gen_statement t in
+		                gen_statement t;
 		                ignore(Llvm.build_br end_bb builder);
 		                
 		                Llvm.position_at_end before_bb builder;
@@ -429,7 +427,7 @@ let rec gen_statement : statement -> unit = function
      (* Declaring loop block and filling it *)
 		 let loop_bb = Llvm.append_block context "loop" the_function in
 		 Llvm.position_at_end loop_bb builder;		    
-		 let i_s = gen_statement s in
+		 gen_statement s;
 
      (* Branching back to test block at end of loop *)
 		 ignore(Llvm.build_br while_bb builder);

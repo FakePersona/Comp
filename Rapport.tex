@@ -1,8 +1,16 @@
 \documentclass{article}
 
 \usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
 \usepackage{xcolor, colortbl}
+
+\title{COMP: TP2}
+
+\author{Nicolas Pompidor \and Rémy Sun}
+
 \begin{document}
+
+\maketitle
 
 \section{Introduction}
 
@@ -69,6 +77,7 @@ Complètement réalisé
 \paragraph{La gestion des tableaux (declaration, expression, affectation et
   lecture)} 
 Complètement réalisé
+%% bug protection variable
 
 \section{Tests}
 
@@ -95,33 +104,41 @@ l'exception de deux programmes de test: \texttt{level4divergence.vsl} et
 Ce programme imprime Toto puis lance une boucle infinie. Néanmoins, à
 l'exécution du programme rien n'est imprimé. Cela s'explique assez simplement:
 Notre implémentation de printf n'est jamais qu'un appel à la fonction
-\texttt{printf} de C! Hors cette fonction n'imprime pas immédiatement le message
+\texttt{printf} de C ! Hors cette fonction n'imprime pas immédiatement le message
 demandé. Si ce message n'est pas de taille ``suffisante'' et ne contient pas de
 caractére indiquant à la fonction d'imprimer, le message est mis en attente dans
 un buffer. Hors notre programme ne s'arrête jamais, et n'a jamais de raison de
-vider son buffer. Ainsi, rien n'est imprimé! On vérifie bien qu'en imprimant
+vider son buffer. Ainsi, rien n'est imprimé ! On vérifie bien qu'en imprimant
 ``Toto$\backslash$n'' à la place de ``Toto'', le message est bien imprimé. \textcolor{blue}{Le
   test fonctionne bien}
 
 \paragraph{level4testfact}
 
 Ce programme s'exécute bien sur le code non optimisé généré. Néanmoins, cela
-n'est pas le cas si on regarde le code optimisé. En effet, il y a un branchemnt
-IF effectuée, et la seule instruction dans la branche ELSE est un RETURN 1. Hors
+n'est pas le cas si on regarde le code optimisé. En effet, il y a un branchement
+IF effectué, et la seule instruction dans la branche ELSE est un RETURN 1. Hors
 il semblerait que l'optimisateur pense possible de supprimer ce bloc, ce qui
-entraîne un problême de comportement.
+entraîne un problême de comportement. \textcolor{red}{Le texte ne fonctionne que sans optimisation}
+
+\subsection{test error}
 
 \subsection{Test proposé}
 
-Nous avons écris un fichier un fichier de test \texttt{myTest.vsl} qui nous
+Nous avons écrit un fichier de test \texttt{myTest.vsl} qui nous
 semble couvrir les principaux points importants à tester.
 
 Les fonctionnalités couvertes sont:
 \begin{itemize}
 \item Calcul d'expressions simples
 \item Structure de contrôle
-\item Prototypes et fonctions
-\item 
+\item Prototypes et fonctions (appels inclus)
+\item Fonctions standards
+\item Déclarations de variables et tableaux
+\item Affectations
+\item Déclaration de fonctions partageant les même noms d'arguments
+\item Récursivité
 \end{itemize}
+
+Le test calcule la valeur de syracuse pour les nombres 0,1,2,3,4 et un entier entré par l'utilisateur.
 
 \end{document}
