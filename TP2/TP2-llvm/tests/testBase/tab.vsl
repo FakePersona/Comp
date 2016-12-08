@@ -1,0 +1,5 @@
+FUNC VOID main() {
+     INT a[2], b
+     a[1] := 5
+
+}

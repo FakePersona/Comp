@@ -1,0 +1,21 @@
+FUNC INT pair(x)
+FUNC INT syracuse(x)
+FUNC VOID main() {
+     INT i, k, t[5]
+     READ k
+     WHILE 5-i DO
+     	   t[i] := 
+     	   
+     
+}
+
+FUNC INT pair(x) {
+INT p;
+IF x-(x/2*2)
+THEN
+	p := 1
+ELSE
+	p := 0
+FI
+RETURN p
+}
