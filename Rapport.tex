@@ -2,6 +2,7 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[french]{babel}
+\usepackage{moreverb}
 \usepackage{xcolor, colortbl}
 
 \title{COMP: TP2}
@@ -40,43 +41,55 @@ l'optimisateur décide d'éliminer le bloc (comportement illicite).
 \section{Ce qui a été réalisé}
 
 \paragraph{Les expressions simples}
-Complètement réalisé.
+\textit{Complètement réalisé.}\\
 Nous avons repris la structure pour l'addition et on l'a appliqué pour les autres expressions.
  
 \paragraph{L'instruction d'affectation}
- Complètement réalisé.
+\textit{Complètement réalisé.}\\
 On stocke la valeur grâce à \texttt{Llvm.build\_store} et on retient
 l'emplacement Llvm par un lien symbolique au nom de variable déclaré.
 
 \paragraph{La gestion des blocs}
-Complètement réalisé.
+\textit{Complètement réalisé.}\\
 Ouverture d'un scope au début du bloc, on réalise la déclaration puis le statement et on ferme le 
 scope.
 
 \paragraph{La declaration des variables}
-Complètement réalisé.
+\textit{Complètement réalisé.}
 
 \paragraph{Les expressions avec variables}
-Complètement réalisé
+\textit{Complètement réalisé}
 
 \paragraph{Les instructions de contrôle }
-Complètement réalisé.
+\textit{Complètement réalisé.}\\
 On créer un bloc pour le if où on évalue la condition puis soit on se branche sur le block du ''then'' 
 ou alors du ''else'' puis ces deux blocs se branchent sur le ''eblock'' à la
-fin. Une instruction phi est mis en place par l'optimisateur pour gérer le
+fin (dans le cas où il n'y a pas de ''else'' on se branche directement sur le ''eblock'' si la condition n'est pas validée). Une instruction phi est mise en place par l'optimisateur pour gérer le
 branchement sur le bloc de fin.
 
-\paragraph{La definition et l'appel de fonctions (avec les prototypes)}
-Complètement réalisé.
+\paragraph{La définition et l'appel de fonctions (avec les prototypes)}
+\textit{Complètement réalisé.}
 
 
-\paragraph{Les fonctions de la bibliotheque}
-Complètement réalisé
+\paragraph{Les fonctions de la bibliothèque}
+\textit{Complètement réalisé.}
 
 
-\paragraph{La gestion des tableaux (declaration, expression, affectation et
+\paragraph{La gestion des tableaux (déclaration, expression, affectation et
   lecture)} 
-Complètement réalisé
+\textit{Complètement réalisé.}\\
+Cependant un problème réside : il est possible d'affecter une valeur à l'identifiant d'un tableau.
+Par exemple le code suivant va être accepté par notre compilateur :
+\begin{verbatimtab}
+FUNC INT main() {
+   INT t[2]
+   t := 5
+   RETURN 0
+}
+
+\end{verbatimtab}
+
+En effet l'identifiant du tableau pointe sur la sa première sa case, ainsi l'affection ne provoque pas d'erreur.
 %% bug protection variable
 
 \section{Tests}
@@ -120,7 +133,9 @@ IF effectué, et la seule instruction dans la branche ELSE est un RETURN 1. Hors
 il semblerait que l'optimisateur pense possible de supprimer ce bloc, ce qui
 entraîne un problême de comportement. \textcolor{red}{Le texte ne fonctionne que sans optimisation}
 
-\subsection{test error}
+\subsection{Test error}
+
+Tous les programmes provoquent des erreurs lors de la compilation sauf test\textit{\_invalid\_assign.vsl} et \textit{test\_invalid\_assign2.vsl}  puisque notre compilateur accepte l'affection d'une valeur à l'identifiant d'un tableau.
 
 \subsection{Test proposé}
 
@@ -141,4 +156,19 @@ Les fonctionnalités couvertes sont:
 
 Le test calcule la valeur de syracuse pour les nombres 0,1,2,3,4 et un entier entré par l'utilisateur.
 
+\section{Conclusion}
+% une conclusion où vous discuterez des difficultés rencontrées,
+% de ce que vous avez appris, etc.
+La principale difficulté rencontrée a été comprendre le fonctionnement des librairies LLVM ainsi que
+le code déjà écrit. Par ailleurs la documentation fournie nous a parfois posé quelques soucis lorsqu'il fallait trouver une fonction en particulier.\\
+En plus de nous avoir appris à mieux maîtriser la programmation en OCaml, ce TP a été l'occasion de voir en détail le fonctionnement d'un compilateur pour générer du code 3 adresses. 
+
+%et je sais pas quoi dire :D
+
 \end{document}
+
+
+ 
+ 
+ 
+ 
