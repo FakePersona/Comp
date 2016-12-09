@@ -164,6 +164,7 @@ let rec gen_expression : expression -> Llvm.llvalue = function
   (*** Looks up and loads value of variable id ***)
   | Expr_Ident(id) ->
      (* Look up id's llvalue *)
+     if (is_array id) then raise (Error "trying to manipulate array");
      let symb = try lookup id with
 		            |Not_found -> raise (Error "Undeclared variable")
      in
@@ -174,6 +175,7 @@ let rec gen_expression : expression -> Llvm.llvalue = function
   (*** Looks up and loads eth value of array id ***)
   | ArrayElem(id,e) ->
      (* Look up pointer to eth element of id *)
+     if not (is_array id) then raise (Error "trying to dereference integer");
      let arr = lookup id in
 		 let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
 
@@ -231,6 +233,7 @@ let gen_read_item : read_item -> unit = function
 
 (*** Prepares valid input for C's scanf and calls it ***)
   | LHS_Ident id ->
+     if (is_array id) then raise (Error "trying to manipulate array");
      let s = [|const_string "%d"; lookup id|] in
 		 ignore(Llvm.build_call func_scanf s "callread" builder)
 
@@ -238,6 +241,7 @@ let gen_read_item : read_item -> unit = function
 
 (*** Prepares valid input for C's scanf while looking up array's eth position and calls it ***)
   | LHS_ArrayElem(id,e) ->
+     if not (is_array id) then raise (Error "trying to dereference integer");
      let arr = lookup id in
 		 let symb = Llvm.build_gep arr [|gen_expression e|] "assignarray" builder in
 		 let s = [|const_string "%d"; symb|] in
@@ -272,7 +276,7 @@ let gen_dec_item : dec_item -> unit = function
 
      (* Allocating *)
      let symb =  create_entry_block_array_alloca the_function id int_type size in
-     add id symb
+     add_array id symb
 
 
 
@@ -290,7 +294,7 @@ let rec gen_declaration : declaration -> unit = function
 
 
 (********************************************)
-(*****  Generating code for statement3s *****)
+(*****  Generating code for statements *****)
 (********************************************)
 
 let rec gen_statement : statement -> unit = function
@@ -304,17 +308,19 @@ let rec gen_statement : statement -> unit = function
   (*** Assigns value e to lhs ***)
   | Assign(LHS_Ident(lhs),e) ->
      (* Looking up lhs and computing e *)
+     if (is_array lhs) then raise (Error "trying to manipulate array");
      let symb = try lookup lhs with
                 |Not_found -> raise (Error "Undeclared variable")
      in
      let value = gen_expression e in
 
      (* Building store instruction *)
- 		 ignore(Llvm.build_store value symb builder)
+     ignore(Llvm.build_store value symb builder)
 
   (*** Assigns value assigned to eth  elements of array id ***)
   | Assign(LHS_ArrayElem(id, e),assigned)->
      (* Lookup array position and eth element *)
+     if not (is_array id) then raise (Error "trying to dereference integer");
      let arr = try lookup id with
                |Not_found -> raise (Error "Undeclared variable")
      in
@@ -397,8 +403,7 @@ let rec gen_statement : statement -> unit = function
 		                
 		                Llvm.position_at_end before_bb builder;
 		                ignore(Llvm.build_br if_bb builder);
-
-                    
+                   
 		                Llvm.position_at_end if_bb builder;
 		                ignore(Llvm.build_cond_br cond_val true_bb end_bb builder);
 		                
@@ -465,6 +470,7 @@ let rec gen_statement : statement -> unit = function
 
   (*** Map code generating routine on every element of l ***)
   | Print l -> ignore(List.map gen_print_item l)
+		     
   | Read l -> ignore(List.map gen_read_item l)
 
 
@@ -506,44 +512,59 @@ let gen_proto : proto -> Llvm.llvalue = function
 let gen_function : program_unit -> unit = function(* llvm.params llvm.set_value_name *)
 (*** Generates code for prototype by calling prototype routine ***)
   | Proto(p) ->
-ignore(gen_proto p)
+     ignore(gen_proto p)
+
+	   
 
 (*** Generates code for function ***)
   | Function(p,s) ->
-let f = gen_proto p in
-		    (* Set names for all arguments. *)
-		    let ty = (match p with (t,_,_) -> if  t = Type_Int then int_type else void_type) in
-		    open_scope();
+     let f = gen_proto p in
+     (* Set names for all arguments and initialize in local scope. *)
+     let ty = (match p with (t,_,_) -> if  t = Type_Int then int_type else void_type) in
+     open_scope();
 
-		    let args = match p with
-		      | (_, _,args) -> args
-		    in
+     let args = match p with
+       | (_, _,args) -> args
+     in
 
-		    let entry_bb = Llvm.append_block context "entry" f in
-		    Llvm.position_at_end entry_bb builder;
-		    Array.iteri (fun i ai ->
-				 let var_name = args.(i) in
-				 (* Create an alloca for this variable. *)
-				 let alloca = create_entry_block_alloca f var_name int_type in
+     let entry_bb = Llvm.append_block context "entry" f in
+     Llvm.position_at_end entry_bb builder;
+     Array.iteri (fun i ai ->
+		  let var_name = args.(i) in
+		  (* Create an alloca for this variable. *)
+		  let alloca = create_entry_block_alloca f var_name int_type in
 
-				 (* Store the initial value into the alloca. *)
-				 ignore(Llvm.build_store ai alloca builder);
+		  (* Store the initial value into the alloca. *)
+		  ignore(Llvm.build_store ai alloca builder);
 
-				 (* Add arguments to variable symbol table. *)
-				 add var_name alloca;
-				) (Llvm.params f);
-		    ignore(gen_statement s);
-		    let zero = const_int 0 in
-		    if ty = void_type then ignore(Llvm.build_ret_void builder) else ignore(Llvm.build_ret zero builder);
-		    close_scope()
+		  (* Add arguments to variable symbol table. *)
+		  add var_name alloca;
+		 ) (Llvm.params f);
+
+     (* Generating function *)
+     ignore(gen_statement s);
+
+     (* Putting a default return value just in case and closing local scope *)
+     let zero = const_int 0 in
+     if ty = void_type then ignore(Llvm.build_ret_void builder) else ignore(Llvm.build_ret zero builder);
+     close_scope()
+
+
+
+
+(*************************************************)
+(*****  Wrapper for function code generation *****)
+(*************************************************)
 
 let rec gen_program : program -> unit = function
   | [] -> ()
   | p::q -> gen_function p; gen_program q
 
 
+(****************************************************)
+(*****  Entry point for code generating routine *****)
+(****************************************************)
 
-(* function that turns the code generated for an expression into a valid LLVM code *)
 let gen (p : program) : unit =
   open_scope();
   gen_program p;
